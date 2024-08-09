@@ -1,0 +1,13 @@
+# This requirements file should only include dependencies for development
+pathlib_mate                            # autopep8 your code
+twine                                   # make distribution archive
+wheel                                   # make pre-compiled distribution package
+build                                   # build distribution package
+# more dev test tools
+numpy>=1.26.4,<2.0.0
+moto>=5.0.0,<6.0.0
+rich>=13.4.2,<14.0.0
+vislog>=0.1.2,<1.0.0
+s3pathlib>=2.1.2,<3.0.0
+boto_session_manager>=1.7.2,<2.0.0
+boto3_stubs[s3]
