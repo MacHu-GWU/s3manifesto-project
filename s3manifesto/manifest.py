@@ -51,7 +51,7 @@ def split_s3_uri(uri: str) -> T.Tuple[str, str]:
     return bucket, key
 
 
-@dataclasses.dataclass(slots=True)
+@dataclasses.dataclass
 class ManifestFile:
     """
     Manifest file refers to two files:
