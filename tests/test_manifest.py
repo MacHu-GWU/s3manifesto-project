@@ -10,11 +10,13 @@ class TestManifestFile(BaseMockAwsTest):
     use_mock: bool = True
 
     def test(self):
+        # [start1]
         # make dummy manifest file
         n_file = 1000
         uri = f"s3://{self.bucket}/manifest.json"
         uri_summary = f"s3://{self.bucket}/manifest-summary.json"
 
+        # collect data file metadata
         data_file_list = list()
         total_size = 0
         total_record = 0
@@ -33,24 +35,36 @@ class TestManifestFile(BaseMockAwsTest):
             data_file_list.append(data_file)
 
         # test write and read
+        # create manifest file object
         manifest_file = ManifestFile.new(
-            uri=uri,
-            uri_summary=uri_summary,
+            uri=uri, # uri is the manifest-data.parquet file uri
+            uri_summary=uri_summary, # uri_summary is the manifest-summary.json file uri
             data_file_list=data_file_list,
+            # if True, then calculate the size and n_record using the data_file_list
+            # otherwise, you need to set the size and n_record manually like this
+            # ManifestFile.new(size=total_size, n_record=total_record)
             calculate=True,
         )
         assert manifest_file.size == total_size
         assert manifest_file.n_record == total_record
 
+        # write the manifest file to S3
         manifest_file.write(s3_client=self.s3_client)
-
+        # [end1]
+        # [start2]
+        # read the manifest file from S3
+        # you only need to provide the uri_summary, it will read the
+        # manifest-summary.json file to locate the manifest-data.parquet
         manifest_file1 = ManifestFile.read(
-            uri_summary=uri_summary, s3_client=self.s3_client
+            uri_summary=uri_summary,
+            s3_client=self.s3_client,
         )
         assert manifest_file1.size == manifest_file.size
         assert manifest_file1.n_record == manifest_file.n_record
         assert len(manifest_file1.data_file_list) == len(manifest_file.data_file_list)
+        # [end2]
 
+        # [start3]
         # test group files into tasks
         target_size = 100_000_000  # 100MB
         data_file_group_list = manifest_file.group_files_into_tasks(
@@ -61,6 +75,7 @@ class TestManifestFile(BaseMockAwsTest):
                 sum([data_file["size"] for data_file in data_file_group])
                 <= target_size * 2
             )
+        # [end3]
 
 
 if __name__ == "__main__":

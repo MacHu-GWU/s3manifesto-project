@@ -183,6 +183,8 @@ class ManifestFile:
     ) -> T.List[T.List["T_DATA_FILE"]]:
         """
         Group the snapshot data files into tasks.
+
+        todo: add an option to group by number of records.
         """
         URI = KeyEnum.URI
         SIZE = KeyEnum.SIZE
