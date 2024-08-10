@@ -14,3 +14,4 @@ class KeyEnum:
     N_RECORD = "n_record"
     FINGERPRINT = "fingerprint"
     MANIFEST = "manifest"
+    DETAILS = "details"

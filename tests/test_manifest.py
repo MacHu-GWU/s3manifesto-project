@@ -41,6 +41,7 @@ class TestManifestFile(BaseMockAwsTest):
             uri=uri, # uri is the manifest-data.parquet file uri
             uri_summary=uri_summary, # uri_summary is the manifest-summary.json file uri
             data_file_list=data_file_list,
+            details={"owner": "Alice"},
             # if True, then calculate the size and n_record using the data_file_list
             # otherwise, you need to set the size and n_record manually like this
             # ManifestFile.new(size=total_size, n_record=total_record)
@@ -49,6 +50,7 @@ class TestManifestFile(BaseMockAwsTest):
         assert manifest_file.size == total_size
         assert manifest_file.n_record == total_record
         assert isinstance(manifest_file.fingerprint, str)
+        assert manifest_file.details == {"owner": "Alice"}
 
         # write the manifest file to S3
         manifest_file.write(s3_client=self.s3_client)
@@ -66,6 +68,7 @@ class TestManifestFile(BaseMockAwsTest):
         assert manifest_file1.n_record == manifest_file.n_record
         assert len(manifest_file1.data_file_list) == len(manifest_file.data_file_list)
         assert manifest_file1.fingerprint == manifest_file.fingerprint
+        assert manifest_file.details == {"owner": "Alice"}
         # [end2]
 
         # [start3]

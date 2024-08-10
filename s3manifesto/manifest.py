@@ -69,6 +69,7 @@ class ManifestFile:
     :param n_record: Total number of records in the data files.
     :param fingerprint: A unique fingerprint for the manifest file. It is
         calculated based on the URI and ETag of the data files.
+    :param details: Additional details about the manifest file.
     """
 
     uri: str = dataclasses.field()
@@ -77,6 +78,7 @@ class ManifestFile:
     size: T.Optional[int] = dataclasses.field(default=None)
     n_record: T.Optional[int] = dataclasses.field(default=None)
     fingerprint: T.Optional[str] = dataclasses.field(default=None)
+    details: T.Dict[str, T.Any] = dataclasses.field(default_factory=dict)
 
     def calculate(self):
         """
@@ -132,6 +134,7 @@ class ManifestFile:
         size: T.Optional[int] = None,
         n_record: T.Optional[int] = None,
         fingerprint: T.Optional[str] = None,
+        details: T.Optional[T.Dict[str, T.Any]] = None,
         calculate: bool = True,
     ):
         """
@@ -145,6 +148,8 @@ class ManifestFile:
         :param n_record: Total number of records in the data files.
         :param calculate: If True, calculate the size and n_record using the data_file_list.
         """
+        if details is None:
+            details = dict()
         manifest_file = cls(
             uri=uri,
             uri_summary=uri_summary,
@@ -152,6 +157,7 @@ class ManifestFile:
             size=size,
             n_record=n_record,
             fingerprint=fingerprint,
+            details=details,
         )
         if calculate:
             manifest_file.calculate()
@@ -171,6 +177,7 @@ class ManifestFile:
             KeyEnum.SIZE: self.size,
             KeyEnum.N_RECORD: self.n_record,
             KeyEnum.FINGERPRINT : self.fingerprint,
+            KeyEnum.DETAILS: self.details,
         }
         bucket, key = split_s3_uri(self.uri_summary)
         s3_client.put_object(
@@ -210,6 +217,7 @@ class ManifestFile:
             n_record=dct[KeyEnum.N_RECORD],
             data_file_list=data_file_list,
             fingerprint=dct[KeyEnum.FINGERPRINT],
+            details=dct[KeyEnum.DETAILS],
             calculate=False,
         )
         return manifest_file
