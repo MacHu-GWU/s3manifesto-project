@@ -48,6 +48,7 @@ class TestManifestFile(BaseMockAwsTest):
         )
         assert manifest_file.size == total_size
         assert manifest_file.n_record == total_record
+        assert isinstance(manifest_file.fingerprint, str)
 
         # write the manifest file to S3
         manifest_file.write(s3_client=self.s3_client)

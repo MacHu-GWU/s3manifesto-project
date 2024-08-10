@@ -12,6 +12,7 @@ def test():
     _ = api.KeyEnum.ETAG
     _ = api.KeyEnum.SIZE
     _ = api.KeyEnum.N_RECORD
+    _ = api.KeyEnum.FINGERPRINT
     _ = api.KeyEnum.MANIFEST
     _ = api.group_files
     _ = api.ManifestFile

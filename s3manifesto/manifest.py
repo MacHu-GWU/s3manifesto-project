@@ -67,6 +67,8 @@ class ManifestFile:
     :param data_file_list: List of data files.
     :param size: Total size of the data files.
     :param n_record: Total number of records in the data files.
+    :param fingerprint: A unique fingerprint for the manifest file. It is
+        calculated based on the URI and ETag of the data files.
     """
 
     uri: str = dataclasses.field()
@@ -74,8 +76,12 @@ class ManifestFile:
     data_file_list: T.List[T_DATA_FILE] = dataclasses.field(default_factory=list)
     size: T.Optional[int] = dataclasses.field(default=None)
     n_record: T.Optional[int] = dataclasses.field(default=None)
+    fingerprint: T.Optional[str] = dataclasses.field(default=None)
 
     def calculate(self):
+        """
+        Calculate total size and n_record of the data files.
+        """
         size_list = list()
         n_record_list = list()
         SIZE = KeyEnum.SIZE
@@ -108,6 +114,15 @@ class ManifestFile:
         except:  # pragma: no cover
             pass
 
+        try:
+            md5 = hashlib.md5()
+            for data_file in sorted(self.data_file_list, key=lambda x: x[KeyEnum.URI]):
+                md5.update(data_file[KeyEnum.URI].encode("utf-8"))
+                md5.update(data_file[KeyEnum.ETAG].encode("utf-8"))
+            self.fingerprint = md5.hexdigest()
+        except: # pragma: no cover
+            pass
+
     @classmethod
     def new(
         cls,
@@ -116,14 +131,27 @@ class ManifestFile:
         data_file_list: T.List[T_DATA_FILE],
         size: T.Optional[int] = None,
         n_record: T.Optional[int] = None,
+        fingerprint: T.Optional[str] = None,
         calculate: bool = True,
     ):
+        """
+        Create a new manifest file object. To load manifest file data from S3,
+        use the :meth:`read` method.
+
+        :param uri: URI of the manifest data file.
+        :param uri_summary: URI of the manifest summary file.
+        :param data_file_list: List of data files.
+        :param size: Total size of the data files.
+        :param n_record: Total number of records in the data files.
+        :param calculate: If True, calculate the size and n_record using the data_file_list.
+        """
         manifest_file = cls(
             uri=uri,
             uri_summary=uri_summary,
             data_file_list=data_file_list,
             size=size,
             n_record=n_record,
+            fingerprint=fingerprint,
         )
         if calculate:
             manifest_file.calculate()
@@ -135,11 +163,14 @@ class ManifestFile:
     ):
         """
         Write the manifest file to S3.
+
+        :param s3_client: boto3.client("s3") object.
         """
         manifest_summary = {
             KeyEnum.MANIFEST: self.uri,
             KeyEnum.SIZE: self.size,
             KeyEnum.N_RECORD: self.n_record,
+            KeyEnum.FINGERPRINT : self.fingerprint,
         }
         bucket, key = split_s3_uri(self.uri_summary)
         s3_client.put_object(
@@ -161,6 +192,9 @@ class ManifestFile:
     def read(cls, uri_summary: str, s3_client: "S3Client"):
         """
         Read the manifest file from S3.
+
+        :param uri_summary: URI of the manifest summary file. (NOT THE MANIFEST DATA FILE)
+        :param s3_client: boto3.client("s3") object.
         """
         bucket, key = split_s3_uri(uri_summary)
         res = s3_client.get_object(Bucket=bucket, Key=key)
@@ -175,21 +209,10 @@ class ManifestFile:
             size=dct[KeyEnum.SIZE],
             n_record=dct[KeyEnum.N_RECORD],
             data_file_list=data_file_list,
+            fingerprint=dct[KeyEnum.FINGERPRINT],
             calculate=False,
         )
         return manifest_file
-
-    @cached_property
-    def fingerprint(self) -> str:
-        """
-        A unique fingerprint for the manifest file. It is calculated based on
-        the URI and ETag of the data files.
-        """
-        md5 = hashlib.md5()
-        for data_file in sorted(self.data_file_list, key=lambda x: x[KeyEnum.URI]):
-            md5.update(data_file[KeyEnum.URI].encode("utf-8"))
-            md5.update(data_file[KeyEnum.ETAG].encode("utf-8"))
-        return md5.hexdigest()
 
     def _group_files_into_tasks(
         self,
