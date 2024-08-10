@@ -19,7 +19,9 @@ metadata, and enabling efficient batch processing in ETL workflows.
 import typing as T
 import io
 import json
+import hashlib
 import dataclasses
+from functools import cached_property
 
 import polars as pl
 
@@ -177,25 +179,69 @@ class ManifestFile:
         )
         return manifest_file
 
-    def group_files_into_tasks(
+    @cached_property
+    def fingerprint(self) -> str:
+        """
+        A unique fingerprint for the manifest file. It is calculated based on
+        the URI and ETag of the data files.
+        """
+        md5 = hashlib.md5()
+        for data_file in sorted(self.data_file_list, key=lambda x: x[KeyEnum.URI]):
+            md5.update(data_file[KeyEnum.URI].encode("utf-8"))
+            md5.update(data_file[KeyEnum.ETAG].encode("utf-8"))
+        return md5.hexdigest()
+
+    def _group_files_into_tasks(
         self,
-        target_size: int = 100 * 1000 * 1000,  ## 100 MB
+        attr_name: str,
+        target: int = 100 * 1000 * 1000,  ## 100 MB
     ) -> T.List[T.List["T_DATA_FILE"]]:
         """
         Group the snapshot data files into tasks.
-
-        todo: add an option to group by number of records.
         """
         URI = KeyEnum.URI
-        SIZE = KeyEnum.SIZE
         mapping = {data_file[URI]: data_file for data_file in self.data_file_list}
-        files = [(data_file[URI], data_file[SIZE]) for data_file in self.data_file_list]
-        file_groups = group_files(files=files, target=target_size)
+        files = [
+            (data_file[URI], data_file[attr_name]) for data_file in self.data_file_list
+        ]
+        file_groups = group_files(files=files, target=target)
         data_file_group_list = list()
         for file_group in file_groups:
-            data_file_list = [mapping[uri] for uri, size in file_group]
+            data_file_list = [mapping[uri] for uri, _ in file_group]
             data_file_group_list.append(data_file_list)
         return data_file_group_list
+
+    def group_files_into_tasks_by_size(
+        self,
+        target_size: int = 100 * 1000 * 1000,  ## 100 MB in size
+    ) -> T.List[T.List["T_DATA_FILE"]]:
+        """
+        Organize data files into balanced task groups, ensuring each group's
+        total file size approximates a specified target,
+        optimizing workload distribution.
+
+        :param target_size: Target size for each task group in bytes.
+        """
+        return self._group_files_into_tasks(
+            attr_name=KeyEnum.SIZE,
+            target=target_size,
+        )
+
+    def group_files_into_tasks_by_n_record(
+        self,
+        target_n_record: int = 10 * 1000 * 1000,  ## 10M records
+    ) -> T.List[T.List["T_DATA_FILE"]]:
+        """
+        Organize data files into balanced task groups, ensuring each group's
+        total number of records approximates a specified target,
+        optimizing workload distribution.
+
+        :param target_n_record: Target number of records for each task group.
+        """
+        return self._group_files_into_tasks(
+            attr_name=KeyEnum.N_RECORD,
+            target=target_n_record,
+        )
 
 
 T_MANIFEST_FILE = T.TypeVar("T_MANIFEST_FILE", bound=ManifestFile)

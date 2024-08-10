@@ -2,6 +2,7 @@
 
 import random
 
+from s3manifesto.constants import KeyEnum
 from s3manifesto.manifest import ManifestFile
 from s3manifesto.tests.mock_aws import BaseMockAwsTest
 
@@ -28,7 +29,7 @@ class TestManifestFile(BaseMockAwsTest):
             total_record += n_record
             data_file = dict(
                 uri=uri,
-                md5="...",
+                etag="...",
                 size=size,
                 n_record=n_record,
             )
@@ -50,6 +51,7 @@ class TestManifestFile(BaseMockAwsTest):
 
         # write the manifest file to S3
         manifest_file.write(s3_client=self.s3_client)
+
         # [end1]
         # [start2]
         # read the manifest file from S3
@@ -62,18 +64,30 @@ class TestManifestFile(BaseMockAwsTest):
         assert manifest_file1.size == manifest_file.size
         assert manifest_file1.n_record == manifest_file.n_record
         assert len(manifest_file1.data_file_list) == len(manifest_file.data_file_list)
+        assert manifest_file1.fingerprint == manifest_file.fingerprint
         # [end2]
 
         # [start3]
-        # test group files into tasks
+        # test group files into tasks by size
         target_size = 100_000_000  # 100MB
-        data_file_group_list = manifest_file.group_files_into_tasks(
+        data_file_group_list = manifest_file.group_files_into_tasks_by_size(
             target_size=target_size,
         )
         for data_file_group in data_file_group_list:
             assert (
-                sum([data_file["size"] for data_file in data_file_group])
+                sum([data_file[KeyEnum.SIZE] for data_file in data_file_group])
                 <= target_size * 2
+            )
+
+        # test group files into tasks by n_record
+        target_n_record = 10_000_000  # 10M
+        data_file_group_list = manifest_file.group_files_into_tasks_by_n_record(
+            target_n_record=target_n_record,
+        )
+        for data_file_group in data_file_group_list:
+            assert (
+                sum([data_file[KeyEnum.N_RECORD] for data_file in data_file_group])
+                <= target_n_record * 2
             )
         # [end3]
 

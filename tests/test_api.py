@@ -8,9 +8,15 @@ def test():
     _ = api.T_RECORD
     _ = api.T_FILE_SPEC
     _ = api.T_DATA_FILE
-    _ = api.KeyEnum
+    _ = api.KeyEnum.URI
+    _ = api.KeyEnum.ETAG
+    _ = api.KeyEnum.SIZE
+    _ = api.KeyEnum.N_RECORD
+    _ = api.KeyEnum.MANIFEST
     _ = api.group_files
     _ = api.ManifestFile
+    _ = api.ManifestFile.group_files_into_tasks_by_size
+    _ = api.ManifestFile.group_files_into_tasks_by_n_record
 
 
 if __name__ == "__main__":

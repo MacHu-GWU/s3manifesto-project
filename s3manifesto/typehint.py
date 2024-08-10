@@ -13,6 +13,6 @@ T_FILE_SPEC = T.Tuple[str, int]
 
 class T_DATA_FILE(T.TypedDict):
     uri: T.Required[str]
-    md5: T.Required[T.Optional[str]]
+    etag: T.Required[T.Optional[str]]
     size: T.Required[T.Optional[int]]
     n_record: T.Required[T.Optional[int]]

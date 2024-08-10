@@ -3,7 +3,7 @@
 
 class KeyEnum:
     URI = "uri"
-    MD5 = "md5"
+    ETAG = "etag"
     SIZE = "size"
     N_RECORD = "n_record"
     MANIFEST = "manifest"
