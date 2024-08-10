@@ -8,4 +8,6 @@ include *.txt
 include *.rst
 exclude *.pyc
 exclude *.pyo
+exclude s3manifesto/docs/**
 exclude s3manifesto/tests/**
+exclude s3manifesto/vendor/**
