@@ -15,6 +15,13 @@ x.y.z (Backlog)
 **Miscellaneous**
 
 
+0.3.1 (2024-08-10)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+**💥Breaking Changes**
+
+- ``group_files``, ``ManifestFile.group_files_into_tasks_by_size``, ``ManifestFile.group_files_into_tasks_by_n_record`` now returns ``List[Tuple[List[T_DATA_FILE, int]]]`` instead of ``List[List[T_DATA_FILE]]``.
+
+
 0.2.1 (2024-08-10)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 **💥Breaking Changes**
