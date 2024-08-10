@@ -10,7 +10,7 @@ def group_files(
     files: T.List[T_FILE_SPEC],
     target: int,
     sort_by_target: bool = True,
-) -> T.List[T.List[T_FILE_SPEC]]:
+) -> T.List[T.Tuple[T.List[T_FILE_SPEC], int]]:
     """
     Given a list of :class:`File` and a target size, put them into groups,
     so that each group has approximately the same size as the target size.
@@ -33,7 +33,7 @@ def group_files(
         # if no files left
         if len(files) == 0:
             if len(file_group):
-                file_groups.append(file_group)
+                file_groups.append((file_group, file_group_size))
             break
 
         remaining_size = half_target_size - file_group_size
@@ -48,7 +48,7 @@ def group_files(
         file_group_size += file[1]
 
         if file_group_size >= target:
-            file_groups.append(file_group)
+            file_groups.append((file_group, file_group_size))
             file_group = list()
             file_group_size = 0
 

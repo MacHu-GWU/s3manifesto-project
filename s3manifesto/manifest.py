@@ -218,7 +218,7 @@ class ManifestFile:
         self,
         attr_name: str,
         target: int = 100 * 1000 * 1000,  ## 100 MB
-    ) -> T.List[T.List["T_DATA_FILE"]]:
+    ) -> T.List[T.Tuple[T.List["T_DATA_FILE"], int]]:
         """
         Group the snapshot data files into tasks.
         """
@@ -229,15 +229,15 @@ class ManifestFile:
         ]
         file_groups = group_files(files=files, target=target)
         data_file_group_list = list()
-        for file_group in file_groups:
+        for file_group, value in file_groups:
             data_file_list = [mapping[uri] for uri, _ in file_group]
-            data_file_group_list.append(data_file_list)
+            data_file_group_list.append((data_file_list, value))
         return data_file_group_list
 
     def group_files_into_tasks_by_size(
         self,
         target_size: int = 100 * 1000 * 1000,  ## 100 MB in size
-    ) -> T.List[T.List["T_DATA_FILE"]]:
+    ) -> T.List[T.Tuple[T.List["T_DATA_FILE"], int]]:
         """
         Organize data files into balanced task groups, ensuring each group's
         total file size approximates a specified target,
@@ -253,7 +253,7 @@ class ManifestFile:
     def group_files_into_tasks_by_n_record(
         self,
         target_n_record: int = 10 * 1000 * 1000,  ## 10M records
-    ) -> T.List[T.List["T_DATA_FILE"]]:
+    ) -> T.List[T.Tuple[T.List["T_DATA_FILE"], int]]:
         """
         Organize data files into balanced task groups, ensuring each group's
         total number of records approximates a specified target,

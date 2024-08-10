@@ -15,10 +15,10 @@ def test_group_files():
         i += 1
         files.append((f"f-{i}", random.randint(50, 100)))
     file_groups = group_files(files, target=64)
-    for file_group in file_groups:
+    for file_group, file_group_size in file_groups:
         size_list = [file[1] for file in file_group]
         total_size = sum(size_list)
-        # print(total_size, size_list)
+        # print(total_size, file_group_size, size_list)
 
     files = list()
     i = 0
@@ -26,10 +26,10 @@ def test_group_files():
         i += 1
         files.append((f"f-{i}", random.randint(32, 128)))
     file_groups = group_files(files, target=64)
-    for file_group in file_groups:
+    for file_group, file_group_size in file_groups:
         size_list = [file[1] for file in file_group]
         total_size = sum(size_list)
-        # print(total_size, size_list)
+        # print(total_size, file_group_size, size_list)
 
 
 if __name__ == "__main__":

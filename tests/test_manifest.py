@@ -74,22 +74,24 @@ class TestManifestFile(BaseMockAwsTest):
         data_file_group_list = manifest_file.group_files_into_tasks_by_size(
             target_size=target_size,
         )
-        for data_file_group in data_file_group_list:
+        for data_file_group, total_size in data_file_group_list:
             assert (
                 sum([data_file[KeyEnum.SIZE] for data_file in data_file_group])
                 <= target_size * 2
             )
+            assert total_size <= target_size * 2
 
         # test group files into tasks by n_record
         target_n_record = 10_000_000  # 10M
         data_file_group_list = manifest_file.group_files_into_tasks_by_n_record(
             target_n_record=target_n_record,
         )
-        for data_file_group in data_file_group_list:
+        for data_file_group, total_n_record in data_file_group_list:
             assert (
                 sum([data_file[KeyEnum.N_RECORD] for data_file in data_file_group])
                 <= target_n_record * 2
             )
+            assert total_n_record <= target_n_record * 2
         # [end3]
 
 
