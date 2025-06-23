@@ -26,6 +26,7 @@ This release represents a fundamental transformation of s3manifesto from a basic
 - Complete API redesign with immutable dataclasses (``frozen=True, slots=True``)
 - Method signatures changed: ``partition_files_by_size()`` and ``partition_files_by_n_record()`` replace previous grouping methods
 - All data structures now use modern type hints with ``typing_extensions``
+- Drop support for Python 3.8 and earlier; minimum requirement is now Python 3.9
 
 **Features and Improvements**
 
