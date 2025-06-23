@@ -25,3 +25,15 @@ def split_s3_uri(uri: str) -> T.Tuple[str, str]:
     bucket = parts[2]
     key = parts[3]
     return bucket, key
+
+
+def human_size(n: int) -> str:
+    if n < 1024:
+        return f"{n} B"
+
+    size = float(n)
+    for unit in ["KB", "MB", "GB", "TB", "PB", "EB"]:
+        size /= 1024.0
+        if size < 1024:
+            return f"{size:.2f} {unit}"
+    return f"{size:.2f} EB"

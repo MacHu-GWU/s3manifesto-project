@@ -5,11 +5,13 @@ Data model classes.
 """
 
 import dataclasses
+from functools import cached_property
 
 import polars as pl
 
 from .compact import T
 from .typehint import T_RECORD
+from .utils import human_size
 
 
 @dataclasses.dataclass(frozen=True, slots=True)
@@ -46,6 +48,10 @@ class FileSpec(Base):
     uri: str = dataclasses.field()
     value: int = dataclasses.field()
 
+    @property
+    def size_for_human(self) -> str:  # pragma: no cover
+        return human_size(self.value)
+
 
 @dataclasses.dataclass(frozen=True, slots=True)
 class GroupSpec(Base):
@@ -61,6 +67,10 @@ class GroupSpec(Base):
 
     file_specs: T.List[FileSpec] = dataclasses.field()
     value: int = dataclasses.field()
+
+    @property
+    def size_for_human(self) -> str:  # pragma: no cover
+        return human_size(self.value)
 
 
 @dataclasses.dataclass(frozen=True, slots=True)
@@ -81,6 +91,10 @@ class DataFile(Base):
     etag: T.Optional[str] = dataclasses.field(default=None)
     size: T.Optional[int] = dataclasses.field(default=None)
     n_record: T.Optional[int] = dataclasses.field(default=None)
+
+    @property
+    def size_for_human(self) -> str:  # pragma: no cover
+        return human_size(self.size) if self.size is not None else "Unknown"
 
     @classmethod
     def dump_many_to_dataframe(cls, data_files: T.Iterable[T.Self]) -> pl.DataFrame:
@@ -127,6 +141,10 @@ class DataFileGroup(Base):
     attr_name: str = dataclasses.field()
     value: int = dataclasses.field()
 
+    @property
+    def size_for_human(self) -> str:  # pragma: no cover
+        return human_size(self.value)
+
 
 @dataclasses.dataclass(frozen=True, slots=True)
 class ManifestSummary(Base):
@@ -148,3 +166,7 @@ class ManifestSummary(Base):
     n_record: T.Optional[int] = dataclasses.field(default=None)
     fingerprint: T.Optional[str] = dataclasses.field(default=None)
     details: T_RECORD = dataclasses.field(default_factory=dict)
+
+    @cached_property
+    def size_for_human(self) -> str:  # pragma: no cover
+        return human_size(self.size) if self.size is not None else "Unknown"

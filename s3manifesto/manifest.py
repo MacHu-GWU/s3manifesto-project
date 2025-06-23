@@ -7,14 +7,14 @@ Provides the :class:`ManifestFile` class for creating, storing, and retrieving f
 collections, enabling optimized batch processing and intelligent file partitioning.
 """
 
-import typing as T
 import json
 import hashlib
 import dataclasses
 
+from .compact import T
 from .constants import KeyEnum
 from .model import FileSpec, DataFile, DataFileGroup, ManifestSummary
-from .utils import write_parquet, read_parquet, split_s3_uri
+from .utils import write_parquet, read_parquet, split_s3_uri, human_size
 from .grouper import group_files
 
 
@@ -131,6 +131,10 @@ class ManifestFile:
         """
         return len(self.data_file_list)
 
+    @property
+    def size_for_human(self) -> str:  # pragma: no cover
+        return human_size(self.size) if self.size is not None else "Unknown"
+
     def calculate(self):
         """
         Calculate total size, n_record, and fingerprint of the data files in a single pass.
@@ -194,7 +198,7 @@ class ManifestFile:
         fingerprint: T.Optional[str] = None,
         details: T.Optional[T.Dict[str, T.Any]] = None,
         calculate: bool = True,
-    ):
+    ) -> T.Self:
         """
         Create a new manifest file object. To load manifest file data from S3,
         use the :meth:`read` method.
@@ -260,7 +264,7 @@ class ManifestFile:
         cls,
         uri_summary: str,
         s3_client: "S3Client",
-    ):
+    ) -> T.Self:
         """
         Read the manifest file from S3.
 

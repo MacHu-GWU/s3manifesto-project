@@ -4,9 +4,8 @@ from s3manifesto.utils import (
     read_parquet,
     write_parquet,
     split_s3_uri,
+    human_size,
 )
-
-import polars as pl
 
 
 def test_read_and_write_parquet():
@@ -24,6 +23,26 @@ def test_split_s3_uri():
     bucket, key = split_s3_uri(uri)
     assert bucket == "my-bucket"
     assert key == "path/to/file.txt"
+
+
+def test_human_size():
+    cases = [
+        (15, "15 B"),
+        (1023, "1023 B"),
+        (1024, "1.00 KB"),
+        (1500, "1.46 KB"),
+        (2048, "2.00 KB"),
+        (5_242_880, "5.00 MB"),
+        (8_796_093_022, "8.19 GB"),
+        (1_099_511_627_776, "1.00 TB"),
+        (555_555_555_555_555_555, "493.43 PB"),
+        (555_555_555_555_555_555_555, "481.87 EB"),
+        (555_555_555_555_555_555_555_555, "481867.63 EB"),
+    ]
+    for size, expected in cases:
+        size_for_human = human_size(size)
+        # print(f"{size = }, {size_for_human = }, {expected = }") # for debug only
+        assert size_for_human == expected
 
 
 if __name__ == "__main__":
