@@ -1,55 +1,75 @@
 # -*- coding: utf-8 -*-
 
+"""
+File Grouping Algorithm for ETL Pipeline Optimization
+"""
+
 import typing as T
 from collections import deque
 
-from .typehint import T_FILE_SPEC
+from .typehint import T_RECORD
+from .model import FileSpec, GroupSpec, DataFile
 
 
 def group_files(
-    files: T.List[T_FILE_SPEC],
-    target: int,
+    file_specs: T.List[FileSpec],
+    target_value: int,
     sort_by_target: bool = True,
-) -> T.List[T.Tuple[T.List[T_FILE_SPEC], int]]:
+) -> T.List[GroupSpec]:
     """
-    Given a list of :class:`File` and a target size, put them into groups,
+    Given a list of :class:`~s3pathlib.model.FileSpec` and a target total spec value,
+    put them into groups of :class:`~s3pathlib.model.GroupSpec`,
     so that each group has approximately the same size as the target size.
+
+    The grouping algorithm uses a deque-based approach that alternates between selecting
+    the largest and smallest remaining files to create approximately equal-sized batches.
+    This balancing strategy prevents scenarios where some workers finish much earlier
+    than others, maximizing overall throughput in distributed processing environments.
 
     :param files: List of files to be grouped
     :param target: Target size or target n_record for each group
+    :param sort_by_target: If True, sort files by their value before grouping
     """
-    half_target_size = target // 2
+    half_target_size = target_value // 2
 
     if sort_by_target:
-        files = deque(sorted(files, key=lambda x: [1]))
+        file_specs = deque(sorted(file_specs, key=lambda file: file.value))
     else:  # pragma: no cover
-        files = deque(files)
+        file_specs = deque(file_specs)
 
-    file_groups = list()
-    file_group = list()
-    file_group_size = 0
+    group_specs = list()
+    sub_file_specs = list()
+    group_spec_value = 0
 
     while 1:
         # if no files left
-        if len(files) == 0:
-            if len(file_group):
-                file_groups.append((file_group, file_group_size))
+        if len(file_specs) == 0:
+            if len(sub_file_specs):
+                group_spec = GroupSpec(
+                    file_specs=sub_file_specs,
+                    value=group_spec_value,
+                )
+                group_specs.append(group_spec)
             break
 
-        remaining_size = half_target_size - file_group_size
+        remaining_size = half_target_size - group_spec_value
         # take the largest file
         if remaining_size <= half_target_size:
-            file = files.popleft()
+            file_spec = file_specs.popleft()
         # take the smallest file
         else:
-            file = files.pop()
+            file_spec = file_specs.pop()
 
-        file_group.append(file)
-        file_group_size += file[1]
+        sub_file_specs.append(file_spec)
+        group_spec_value += file_spec.value
 
-        if file_group_size >= target:
-            file_groups.append((file_group, file_group_size))
-            file_group = list()
-            file_group_size = 0
+        if group_spec_value >= target_value:
+            group_spec = GroupSpec(
+                file_specs=sub_file_specs,
+                value=group_spec_value,
+            )
+            group_specs.append(group_spec)
+            sub_file_specs = list()
+            group_spec_value = 0
 
-    return file_groups
+    return group_specs
