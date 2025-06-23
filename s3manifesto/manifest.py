@@ -31,8 +31,33 @@ class ManifestFile:
 
     A complete manifest consists of two files that work together:
 
-    1. **Manifest Summary File** (JSON): Contains aggregate metadata and references
-    2. **Manifest Data File** (Parquet): Contains detailed per-file metadata
+    1. **Manifest Summary File** (JSON): Contains aggregate metadata and references, Example::
+
+        {
+            "n_files": 50,
+            "total_size": 600_000_000, # 600 MB
+            "total_records": 100_000,
+            "uri": "s3://bucket/prefix/manifest.parquet",
+            "fingerprint": "2d0175ad9416dc5fd7138546471738ca"
+        }
+
+    2. **Manifest Data File** (Parquet): Contains detailed per-file metadata, example::
+
+        +-------------------------------+--------------+----------+----------------------------------+
+        |              uri              | size (Bytes) | n_record |               Etag               |
+        +-------------------------------+--------------+----------+----------------------------------+
+        | s3://bucket/prefix/file1.json |   1_000_000  |   1000   | 8a53247196e46b53699d065ba3cc8e0d |
+        +-------------------------------+--------------+----------+----------------------------------+
+        | s3://bucket/prefix/file2.json |   2_000_000  |   2000   | b3f20f3c7a8877c24504634edd067fcf |
+        +-------------------------------+--------------+----------+----------------------------------+
+        | s3://bucket/prefix/file3.json |   3_000_000  |   3000   | dd9b315f1d7ec573cb7305e6e238731f |
+        +-------------------------------+--------------+----------+----------------------------------+
+        |              ...              |      ...     |    ...   |                ...               |
+        +-------------------------------+--------------+----------+----------------------------------+
+        |              ...              |      ...     |    ...   |                ...               |
+        +-------------------------------+--------------+----------+----------------------------------+
+        |              ...              |      ...     |    ...   |                ...               |
+        +-------------------------------+--------------+----------+----------------------------------+
 
     **Write Process:**
 

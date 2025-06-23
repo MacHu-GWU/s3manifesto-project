@@ -16,7 +16,7 @@ def test_read_and_write_parquet():
     ]
     b = write_parquet(records)
     records_1 = read_parquet(b)
-    print(records_1)
+    # print(records_1) # for debug only
 
 
 def test_split_s3_uri():

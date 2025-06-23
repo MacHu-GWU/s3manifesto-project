@@ -21,10 +21,10 @@ def func(data_file: T_DATA_FILE):
 
 
 # fmt: off
-_ = func({"id": 1})
-_ = func({"uri": "s3://bucket/key"})
+_ = func({"id": 1}) # IDE catch this error
+_ = func({"uri": "s3://bucket/key"}) # IDE catch this error
 _ = func({"uri": "s3://bucket/key", "size": 1, "n_record": 1})
 _ = func({"uri": "s3://bucket/key", "size": None, "n_record": None})
 _ = func({"uri": "s3://bucket/key", "size": 1, "n_record": 1, "format": "csv"})
-_ = func({"uri": "s3://bucket/key", "size": 1, "n_record": 1, "format": "csv", "compression": "gzip"})
+_ = func({"uri": "s3://bucket/key", "size": 1, "n_record": 1, "format": "csv", "compression": "gzip"}) # IDE catch this error
 # fmt: on

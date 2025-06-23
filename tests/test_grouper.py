@@ -5,6 +5,7 @@ from s3manifesto.grouper import group_files
 import math
 import random
 from s3manifesto.model import FileSpec
+from s3manifesto.vendor import timer
 
 
 def test_group_files_complex_example():
@@ -53,16 +54,14 @@ def test_group_files_complex_example():
         # print(f"Group {i}: {actual_values} = {actual_total}")  # for debug only
 
 
-def _test_group_files_using_random_data(
+def generate_random_data(
     n_small_items: int = 80,
     n_large_items: int = 20,
     small_item_min_value: int = 1,
     small_item_max_value: int = 100,
     large_item_min_value: int = 90,
     large_item_max_value: int = 300,
-    target_value: int = 100,
-    verbose: bool = False,
-):
+) -> list[FileSpec]:
     file_specs = list()
     i = 0
     for _ in range(n_small_items):
@@ -81,7 +80,14 @@ def _test_group_files_using_random_data(
                 value=random.randint(large_item_min_value, large_item_max_value),
             )
         )
+    return file_specs
 
+
+def _test_group_files_using_random_data(
+    file_specs: list[FileSpec],
+    target_value: int,
+    verbose: bool = False,
+):
     group_specs = group_files(file_specs, target_value=target_value)
 
     total_value = sum([file_spec.value for file_spec in file_specs])
@@ -129,7 +135,42 @@ def test_group_files_using_random_data():
     print("")
     n_test = 10
     for _ in range(n_test):
-        _test_group_files_using_random_data(verbose=True)
+        file_specs = generate_random_data()
+        _test_group_files_using_random_data(
+            file_specs=file_specs,
+            target_value=100,
+            verbose=False,
+        )
+
+
+def test_group_files_performance():
+    """
+    Test performance with a large number of files.
+
+    - process 1k item in 0.02 sec
+    - process 5k item in 0.30 sec
+    - process 10k item in 1 sec
+    - process 50k item in 12 sec
+    - process 100k item in 37 sec
+    - process 500k item in 7.5 min
+    - process 1000k item in 24 min
+    """
+    file_specs = generate_random_data(
+        n_small_items=800,
+        n_large_items=200,
+        small_item_min_value=1,
+        small_item_max_value=100,
+        large_item_min_value=100,
+        large_item_max_value=5000,
+    )
+
+    with timer.DateTimeTimer(display=False):
+        # _test_group_files_using_random_data(
+        #     file_specs=file_specs,
+        #     target_value=10000,
+        #     verbose=True,
+        # )
+        group_specs = group_files(file_specs, target_value=10000)
 
 
 if __name__ == "__main__":

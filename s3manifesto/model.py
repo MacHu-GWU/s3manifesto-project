@@ -102,7 +102,13 @@ class DataFile(Base):
 
         :returns: A list of :class:`DataFile` objects created from the DataFrame.
         """
-        return [cls(**row) for row in df.to_dicts()]
+        fields = dataclasses.fields(cls)
+        names = {field.name for field in fields}
+        wanted_cols = list()
+        for col in df.columns:
+            if col in names:
+                wanted_cols.append(col)
+        return [cls(**row) for row in df.select(wanted_cols).to_dicts()]
 
 
 @dataclasses.dataclass(frozen=True, slots=True)
