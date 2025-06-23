@@ -14,7 +14,7 @@ from .typehint import T_RECORD
 from .utils import human_size
 
 
-@dataclasses.dataclass(frozen=True, slots=True)
+@dataclasses.dataclass(frozen=True)
 class Base:
     """
     Base class providing common functionality for all data model classes.
@@ -33,7 +33,7 @@ class Base:
         return dataclasses.asdict(self)
 
 
-@dataclasses.dataclass(frozen=True, slots=True)
+@dataclasses.dataclass(frozen=True)
 class FileSpec(Base):
     """
     Lightweight file specification containing URI and a numeric value for grouping.
@@ -53,7 +53,7 @@ class FileSpec(Base):
         return human_size(self.value)
 
 
-@dataclasses.dataclass(frozen=True, slots=True)
+@dataclasses.dataclass(frozen=True)
 class GroupSpec(Base):
     """
     Represents a balanced group of files with their collective value for optimal task sizing.
@@ -73,7 +73,7 @@ class GroupSpec(Base):
         return human_size(self.value)
 
 
-@dataclasses.dataclass(frozen=True, slots=True)
+@dataclasses.dataclass(frozen=True)
 class DataFile(Base):
     """
     Complete metadata specification for a data file including integrity and size information.
@@ -125,7 +125,7 @@ class DataFile(Base):
         return [cls(**row) for row in df.select(wanted_cols).to_dicts()]
 
 
-@dataclasses.dataclass(frozen=True, slots=True)
+@dataclasses.dataclass(frozen=True)
 class DataFileGroup(Base):
     """
     A collection of :class:`DataFile` grouped together for optimal parallel processing.
@@ -146,7 +146,7 @@ class DataFileGroup(Base):
         return human_size(self.value)
 
 
-@dataclasses.dataclass(frozen=True, slots=True)
+@dataclasses.dataclass(frozen=True)
 class ManifestSummary(Base):
     """
     Compact summary metadata for a manifest file providing quick access to aggregate statistics.
@@ -160,7 +160,6 @@ class ManifestSummary(Base):
     :param fingerprint: Unique hash for detecting data changes and cache invalidation
     :param details: Additional metadata for workflow-specific information
     """
-
     manifest: str = dataclasses.field()
     size: T.Optional[int] = dataclasses.field(default=None)
     n_record: T.Optional[int] = dataclasses.field(default=None)
