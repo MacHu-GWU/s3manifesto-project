@@ -1,11 +1,13 @@
 # -*- coding: utf-8 -*-
 
 """
-Benchmark result::
+Benchmark result:
 
 .. code-block:: python
 
-    n_records = 1000000
+    n_records = 1_000_000
+
+    # in seconds
     {
         "Write ndjson": 1.875375,
         "Read ndjson": 0.356473,
