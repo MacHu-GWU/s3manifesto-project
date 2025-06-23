@@ -10,7 +10,7 @@ name = "s3manifesto"
 # (Read https://packaging.python.org/en/latest/guides/writing-pyproject-toml/#version)
 # So this value has to be aligned with the one in ``s3manifesto/_version.py``
 version = "0.4.1"
-description = "File grouping, metadata management, built on AWS S3 storage backend."
+description = "Data file manifest system using AWS S3 backend for big data ETL process orchestration."
 # Read https://dev-exp-share.readthedocs.io/en/latest/search.html?q=Pick+An+Open+Source+License+For+Python+Project&check_keywords=yes&area=default
 # To pick a license and update the ``license``, ``classifier`` field in ``pyproject.toml``
 # And also update the ``LICENSE.txt`` file in the git repo.

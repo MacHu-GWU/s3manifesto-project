@@ -97,9 +97,13 @@ def group_files(
             heapq.heappush(available_groups_heap, item)
 
         if best_group_idx is not None:
-            # Add file to the best fitting existing group
-            group_specs[best_group_idx].file_specs.append(file_spec)
-            group_specs[best_group_idx].value += file_spec.value
+            # Add file to the best fitting existing group (create new immutable instance)
+            existing_group = group_specs[best_group_idx]
+            updated_group = GroupSpec(
+                file_specs=existing_group.file_specs + [file_spec],
+                value=existing_group.value + file_spec.value,
+            )
+            group_specs[best_group_idx] = updated_group
         else:
             # No existing group can fit this file, create new group
             group_spec = GroupSpec(

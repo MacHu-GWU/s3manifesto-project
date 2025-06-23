@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
 
-import random
-
-from s3manifesto.constants import KeyEnum
 from s3manifesto.manifest import ManifestFile
+
+import random
+from s3manifesto.model import DataFile
 from s3manifesto.tests.mock_aws import BaseMockAwsTest
 
 
@@ -27,7 +27,7 @@ class TestManifestFile(BaseMockAwsTest):
             size = n_record * 1000
             total_size += size
             total_record += n_record
-            data_file = dict(
+            data_file = DataFile(
                 uri=uri,
                 etag="...",
                 size=size,
@@ -38,8 +38,8 @@ class TestManifestFile(BaseMockAwsTest):
         # test write and read
         # create manifest file object
         manifest_file = ManifestFile.new(
-            uri=uri, # uri is the manifest-data.parquet file uri
-            uri_summary=uri_summary, # uri_summary is the manifest-summary.json file uri
+            uri=uri,  # uri is the manifest-data.parquet file uri
+            uri_summary=uri_summary,  # uri_summary is the manifest-summary.json file uri
             data_file_list=data_file_list,
             details={"owner": "Alice"},
             # if True, then calculate the size and n_record using the data_file_list
@@ -51,6 +51,7 @@ class TestManifestFile(BaseMockAwsTest):
         assert manifest_file.n_record == total_record
         assert isinstance(manifest_file.fingerprint, str)
         assert manifest_file.details == {"owner": "Alice"}
+        assert manifest_file.n_data_file == n_file
 
         # write the manifest file to S3
         manifest_file.write(s3_client=self.s3_client)
@@ -74,31 +75,27 @@ class TestManifestFile(BaseMockAwsTest):
         # [start3]
         # test group files into tasks by size
         target_size = 100_000_000  # 100MB
-        data_file_group_list = manifest_file.group_files_into_tasks_by_size(
+        groups = manifest_file.partition_files_by_size(
             target_size=target_size,
         )
-        for data_file_group, total_size in data_file_group_list:
-            assert (
-                sum([data_file[KeyEnum.SIZE] for data_file in data_file_group])
-                <= target_size * 2
-            )
-            assert total_size <= target_size * 2
+        for group in groups:
+            assert group.value <= target_size
 
         # test group files into tasks by n_record
         target_n_record = 10_000_000  # 10M
-        data_file_group_list = manifest_file.group_files_into_tasks_by_n_record(
+        groups = manifest_file.partition_files_by_n_record(
             target_n_record=target_n_record,
         )
-        for data_file_group, total_n_record in data_file_group_list:
-            assert (
-                sum([data_file[KeyEnum.N_RECORD] for data_file in data_file_group])
-                <= target_n_record * 2
-            )
-            assert total_n_record <= target_n_record * 2
+        for group in groups:
+            assert group.value <= target_n_record
         # [end3]
 
 
 if __name__ == "__main__":
     from s3manifesto.tests import run_cov_test
 
-    run_cov_test(__file__, "s3manifesto.manifest", preview=False)
+    run_cov_test(
+        __file__,
+        "s3manifesto.manifest",
+        preview=False,
+    )

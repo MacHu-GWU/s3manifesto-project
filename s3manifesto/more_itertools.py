@@ -1,5 +1,9 @@
-import typing as T
+# -*- coding: utf-8 -*-
+
 from itertools import islice
+
+from .compact import T
+
 
 T_ITEM = T.TypeVar("T_ITEM")
 

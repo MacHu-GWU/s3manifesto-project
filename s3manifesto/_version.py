@@ -3,7 +3,7 @@
 # based on the content in pyproject.toml file
 
 __version__ = "0.4.1"
-__short_description__ = "File grouping, metadata management, built on AWS S3 storage backend."
+__short_description__ = "Data file manifest system using AWS S3 backend for big data ETL process orchestration."
 __license__ = "MIT"
 __author__ = "Sanhe Hu"
 __author_email__ = "husanhe@email.com"

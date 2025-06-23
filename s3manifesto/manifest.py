@@ -1,32 +1,20 @@
 # -*- coding: utf-8 -*-
 
 """
-In ETL (Extract, Transform, Load) pipelines, it's a common practice to group
-numerous files into appropriately sized batches, each forming a distinct task.
-This approach optimizes processing efficiency and resource utilization.
+Manifest file system for efficient metadata management and file grouping in ETL pipelines.
 
-However, this method reqiures an effective mechanism for storing and
-retrieving metadata. Ideally, we should be able to access the metadata for
-an entire task in a single operation, eliminating the need to read each file
-individually. This approach significantly reduces I/O operations and improves
-overall performance.
-
-This module implements an abstraction layer to achieve this functionality.
-It provides a streamlined interface for grouping files, managing their associated
-metadata, and enabling efficient batch processing in ETL workflows.
+Provides the :class:`ManifestFile` class for creating, storing, and retrieving file metadata
+collections, enabling optimized batch processing and intelligent file partitioning.
 """
 
 import typing as T
-import io
 import json
 import hashlib
 import dataclasses
-from functools import cached_property
 
-import polars as pl
-
-from .typehint import T_RECORD, T_DATA_FILE
 from .constants import KeyEnum
+from .model import FileSpec, DataFile, DataFileGroup, ManifestSummary
+from .utils import write_parquet, read_parquet, split_s3_uri
 from .grouper import group_files
 
 
@@ -34,71 +22,114 @@ if T.TYPE_CHECKING:  # pragma: no cover
     from mypy_boto3_s3.client import S3Client
 
 
-def write_parquet(records: T.List[T_RECORD]) -> bytes:
-    df = pl.DataFrame(records)
-    buffer = io.BytesIO()
-    df.write_parquet(buffer, compression="snappy")
-    return buffer.getvalue()
-
-
-def read_parquet(b: bytes) -> T.List[T_RECORD]:
-    df = pl.read_parquet(b)
-    return df.to_dicts()
-
-
-def split_s3_uri(uri: str) -> T.Tuple[str, str]:
-    parts = uri.split("/", 3)
-    bucket = parts[2]
-    key = parts[3]
-    return bucket, key
-
-
 @dataclasses.dataclass
 class ManifestFile:
     """
-    Manifest file refers to two files:
+    Core manifest file system consisting of two linked files for efficient metadata management.
 
-    - Manifest file: Contains the metadata of the data files. It is a parquet file
-        that contains the metadata of the data files. Each row in the parquet file
-        is a
+    **Manifest File Structure:**
 
-    :param uri: URI of the manifest file.
-    :param uri_summary: URI of the manifest summary file.
-    :param data_file_list: List of data files.
-    :param size: Total size of the data files.
-    :param n_record: Total number of records in the data files.
-    :param fingerprint: A unique fingerprint for the manifest file. It is
-        calculated based on the URI and ETag of the data files.
-    :param details: Additional details about the manifest file.
+    A complete manifest consists of two files that work together:
+
+    1. **Manifest Summary File** (JSON): Contains aggregate metadata and references
+    2. **Manifest Data File** (Parquet): Contains detailed per-file metadata
+
+    **Write Process:**
+
+    When creating a manifest, write the Manifest Summary File first, then the Manifest
+    Data File to S3, ensuring atomicity and consistency.
+
+    **Read Process:**
+
+    When reading a manifest, read the Manifest Summary File first to get aggregate
+    statistics and the URI reference, then read the Manifest Data File for detailed metadata.
+
+    **Simple Usage Examples:**
+
+    Creating and writing a manifest::
+
+        data_files = [
+            DataFile(uri="s3://bucket/file1.json", size=1000000, n_record=1000, etag="abc123"),
+            DataFile(uri="s3://bucket/file2.json", size=2000000, n_record=2000, etag="def456"),
+            DataFile(uri="s3://bucket/file3.json", size=3000000, n_record=3000, etag="ghi789")
+        ]
+
+        manifest = ManifestFile.new(
+            uri="s3://bucket/manifest-data.parquet",
+            uri_summary="s3://bucket/manifest-summary.json",
+            data_file_list=data_files,
+        )
+        manifest.write(s3_client)
+
+    Reading a manifest::
+
+        manifest = ManifestFile.read(
+            uri_summary="s3://bucket/manifest-summary.json",
+            s3_client=s3_client,
+        )
+        print(f"Total files: {len(manifest.data_file_list)}")
+        print(f"Total size: {manifest.size} bytes")
+
+    **File Partitioning:**
+
+    Manifest files are essentially collections of file metadata that can be intelligently
+    partitioned for parallel processing. Use :meth:`partition_files_by_size` and
+    :meth:`partition_files_by_n_record` to efficiently split files into balanced groups.
+
+    You can use :class:`ManifestFile` in two ways:
+    - As a **file splitter calculator** (in-memory partitioning without S3 storage)
+    - As a **persistent manifest file storage** (with S3 read/write operations)
+
+    See the :ref:`Quick Start Guide <quick-start>` for complete examples.
+
+    :param uri: URI of the Manifest Data File (Parquet format)
+    :param uri_summary: URI of the Manifest Summary File (JSON format)
+    :param data_file_list: List of DataFile objects with metadata
+    :param size: Total aggregate size in bytes of all files
+    :param n_record: Total aggregate record count across all files
+    :param fingerprint: Unique hash for detecting data changes and cache invalidation
+    :param details: Additional workflow-specific metadata
     """
 
     uri: str = dataclasses.field()
     uri_summary: str = dataclasses.field()
-    data_file_list: T.List[T_DATA_FILE] = dataclasses.field(default_factory=list)
+    data_file_list: T.List[DataFile] = dataclasses.field(default_factory=list)
     size: T.Optional[int] = dataclasses.field(default=None)
     n_record: T.Optional[int] = dataclasses.field(default=None)
     fingerprint: T.Optional[str] = dataclasses.field(default=None)
     details: T.Dict[str, T.Any] = dataclasses.field(default_factory=dict)
 
+    @property
+    def n_data_file(self) -> int:
+        """
+        Get the number of data files in the manifest.
+        """
+        return len(self.data_file_list)
+
     def calculate(self):
         """
-        Calculate total size and n_record of the data files.
+        Calculate total size, n_record, and fingerprint of the data files in a single pass.
+
+        We use pre-calculated values stored as instance attributes rather than
+        lazy-loaded cached properties for performance optimization. Since calculating
+        size, n_record, and fingerprint all require iterating through the data_file_list,
+        using separate cached properties would result in multiple for-loops (one per
+        property access). This single calculate() method performs all computations
+        in one pass, significantly improving efficiency for large file collections.
         """
         size_list = list()
         n_record_list = list()
-        SIZE = KeyEnum.SIZE
-        N_RECORD = KeyEnum.N_RECORD
 
         if (self.size is None) and (self.n_record is None):
             for data_file in self.data_file_list:
-                size_list.append(data_file[SIZE])
-                n_record_list.append(data_file[N_RECORD])
+                size_list.append(data_file.size)
+                n_record_list.append(data_file.n_record)
         elif self.size is None:  # pragma: no cover
             for data_file in self.data_file_list:
-                size_list.append(data_file[SIZE])
+                size_list.append(data_file.size)
         elif self.n_record is None:  # pragma: no cover
             for data_file in self.data_file_list:
-                n_record_list.append(data_file[N_RECORD])
+                n_record_list.append(data_file.n_record)
         else:  # pragma: no cover
             pass
 
@@ -118,11 +149,13 @@ class ManifestFile:
 
         try:
             md5 = hashlib.md5()
-            for data_file in sorted(self.data_file_list, key=lambda x: x[KeyEnum.URI]):
-                md5.update(data_file[KeyEnum.URI].encode("utf-8"))
-                md5.update(data_file[KeyEnum.ETAG].encode("utf-8"))
+            for data_file in sorted(
+                self.data_file_list, key=lambda data_file: data_file.uri
+            ):
+                md5.update(data_file.uri.encode("utf-8"))
+                md5.update(data_file.etag.encode("utf-8"))
             self.fingerprint = md5.hexdigest()
-        except: # pragma: no cover
+        except:  # pragma: no cover
             pass
 
     @classmethod
@@ -130,7 +163,7 @@ class ManifestFile:
         cls,
         uri: str,
         uri_summary: str,
-        data_file_list: T.List[T_DATA_FILE],
+        data_file_list: T.List[DataFile],
         size: T.Optional[int] = None,
         n_record: T.Optional[int] = None,
         fingerprint: T.Optional[str] = None,
@@ -172,31 +205,37 @@ class ManifestFile:
 
         :param s3_client: boto3.client("s3") object.
         """
-        manifest_summary = {
-            KeyEnum.MANIFEST: self.uri,
-            KeyEnum.SIZE: self.size,
-            KeyEnum.N_RECORD: self.n_record,
-            KeyEnum.FINGERPRINT : self.fingerprint,
-            KeyEnum.DETAILS: self.details,
-        }
+        manifest_summary = ManifestSummary(
+            manifest=self.uri,
+            size=self.size,
+            n_record=self.n_record,
+            fingerprint=self.fingerprint,
+            details=self.details,
+        )
         bucket, key = split_s3_uri(self.uri_summary)
         s3_client.put_object(
             Bucket=bucket,
             Key=key,
-            Body=json.dumps(manifest_summary, indent=4),
+            Body=json.dumps(manifest_summary.to_dict(), indent=4),
             ContentType="application/json",
         )
         bucket, key = split_s3_uri(self.uri)
         s3_client.put_object(
             Bucket=bucket,
             Key=key,
-            Body=write_parquet(self.data_file_list),
+            Body=write_parquet(
+                [data_file.to_dict() for data_file in self.data_file_list]
+            ),
             ContentType="application/octet-stream",
             ContentEncoding="gzip",
         )
 
     @classmethod
-    def read(cls, uri_summary: str, s3_client: "S3Client"):
+    def read(
+        cls,
+        uri_summary: str,
+        s3_client: "S3Client",
+    ):
         """
         Read the manifest file from S3.
 
@@ -206,46 +245,55 @@ class ManifestFile:
         bucket, key = split_s3_uri(uri_summary)
         res = s3_client.get_object(Bucket=bucket, Key=key)
         dct = json.loads(res["Body"].read().decode("utf-8"))
+        manifest_summary = ManifestSummary(**dct)
 
         bucket, key = split_s3_uri(dct[KeyEnum.MANIFEST])
         res = s3_client.get_object(Bucket=bucket, Key=key)
-        data_file_list = read_parquet(res["Body"].read())
+        data_file_list = [DataFile(**dct) for dct in read_parquet(res["Body"].read())]
         manifest_file = cls.new(
-            uri=dct[KeyEnum.MANIFEST],
+            uri=manifest_summary.manifest,
             uri_summary=uri_summary,
-            size=dct[KeyEnum.SIZE],
-            n_record=dct[KeyEnum.N_RECORD],
+            size=manifest_summary.size,
+            n_record=manifest_summary.n_record,
             data_file_list=data_file_list,
-            fingerprint=dct[KeyEnum.FINGERPRINT],
-            details=dct[KeyEnum.DETAILS],
+            fingerprint=manifest_summary.fingerprint,
+            details=manifest_summary.details,
             calculate=False,
         )
         return manifest_file
 
-    def _group_files_into_tasks(
+    def _partition_files_by_value(
         self,
         attr_name: str,
-        target: int = 100 * 1000 * 1000,  ## 100 MB
-    ) -> T.List[T.Tuple[T.List["T_DATA_FILE"], int]]:
+        target_value: int,
+    ) -> T.List[DataFileGroup]:
         """
         Group the snapshot data files into tasks.
         """
-        URI = KeyEnum.URI
-        mapping = {data_file[URI]: data_file for data_file in self.data_file_list}
-        files = [
-            (data_file[URI], data_file[attr_name]) for data_file in self.data_file_list
+        mapping: dict[str, DataFile] = {
+            data_file.uri: data_file for data_file in self.data_file_list
+        }
+        file_specs = [
+            FileSpec(uri=data_file.uri, value=getattr(data_file, attr_name))
+            for data_file in self.data_file_list
         ]
-        file_groups = group_files(files=files, target=target)
-        data_file_group_list = list()
-        for file_group, value in file_groups:
-            data_file_list = [mapping[uri] for uri, _ in file_group]
-            data_file_group_list.append((data_file_list, value))
-        return data_file_group_list
+        group_specs = group_files(file_specs=file_specs, target_value=target_value)
+        groups = list()
+        for group_spec in group_specs:
+            group = DataFileGroup(
+                data_files=[
+                    mapping[file_spec.uri] for file_spec in group_spec.file_specs
+                ],
+                attr_name=attr_name,
+                value=group_spec.value,
+            )
+            groups.append(group)
+        return groups
 
-    def group_files_into_tasks_by_size(
+    def partition_files_by_size(
         self,
         target_size: int = 100 * 1000 * 1000,  ## 100 MB in size
-    ) -> T.List[T.Tuple[T.List["T_DATA_FILE"], int]]:
+    ) -> T.List[DataFileGroup]:
         """
         Organize data files into balanced task groups, ensuring each group's
         total file size approximates a specified target,
@@ -253,15 +301,15 @@ class ManifestFile:
 
         :param target_size: Target size for each task group in bytes.
         """
-        return self._group_files_into_tasks(
+        return self._partition_files_by_value(
             attr_name=KeyEnum.SIZE,
-            target=target_size,
+            target_value=target_size,
         )
 
-    def group_files_into_tasks_by_n_record(
+    def partition_files_by_n_record(
         self,
         target_n_record: int = 10 * 1000 * 1000,  ## 10M records
-    ) -> T.List[T.Tuple[T.List["T_DATA_FILE"], int]]:
+    ) -> T.List[DataFileGroup]:
         """
         Organize data files into balanced task groups, ensuring each group's
         total number of records approximates a specified target,
@@ -269,9 +317,9 @@ class ManifestFile:
 
         :param target_n_record: Target number of records for each task group.
         """
-        return self._group_files_into_tasks(
+        return self._partition_files_by_value(
             attr_name=KeyEnum.N_RECORD,
-            target=target_n_record,
+            target_value=target_n_record,
         )
 
 
