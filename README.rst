@@ -18,16 +18,13 @@
 .. image:: https://img.shields.io/pypi/pyversions/s3manifesto.svg
     :target: https://pypi.python.org/pypi/s3manifesto
 
-.. image:: https://img.shields.io/badge/Release_History!--None.svg?style=social
+.. image:: https://img.shields.io/badge/✍️_Release_History!--None.svg?style=social&logo=github
     :target: https://github.com/MacHu-GWU/s3manifesto-project/blob/main/release-history.rst
 
-.. image:: https://img.shields.io/badge/STAR_Me_on_GitHub!--None.svg?style=social
+.. image:: https://img.shields.io/badge/⭐_Star_me_on_GitHub!--None.svg?style=social&logo=github
     :target: https://github.com/MacHu-GWU/s3manifesto-project
 
 ------
-
-.. image:: https://img.shields.io/badge/Link-Document-blue.svg
-    :target: https://s3manifesto.readthedocs.io/en/latest/
 
 .. image:: https://img.shields.io/badge/Link-API-blue.svg
     :target: https://s3manifesto.readthedocs.io/en/latest/py-modindex.html
